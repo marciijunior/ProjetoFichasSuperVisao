@@ -4,7 +4,7 @@ const source=fs.readFileSync('google-sheets/Code.gs','utf8');
 const ID='test-spreadsheet-id',TOKEN='a'.repeat(64);
 function fixture(){
   let rows=[],writes=0,locked=false,blocked=false;
-  const headers=['Nome do cliente','CPF','Modelo','Placa','Número','Data de realização','Telefone','Marca','Município','UF','Chassi','Renavam','Combustível','Potência do motor','Ano de fabricação','Cor','Número do motor','ID da ficha','Atualizado em','Excluída'];
+  const headers=['Nome do cliente','CPF','Modelo','Placa','Número','Data de realização','Telefone','Marca','Município','UF','Chassi','Renavam','Combustível','Potência do motor','Ano de fabricação','Cor','Número do motor','ID da ficha','Atualizado em','Excluída','Cliente do caixa','Valor do caixa em centavos'];
   const sheet={getRange:(row,col,count)=>({getDisplayValues:()=>row===1?[headers]:rows.slice(row-2,row-2+count).map(r=>r.slice())}),getLastRow:()=>rows.length+1,getMaxRows:()=>1000,getSheetId:()=>1100};
   const ctx=vm.createContext({
     SpreadsheetApp:{openById:id=>{assert.equal(id,ID);return {getSheetByName:()=>sheet};}},
@@ -47,7 +47,7 @@ test('exclusão limpa dados pessoais e evita ressurreição por tentativa atrasa
   assert.equal(f.rows[0].slice(0,17).join(''),'');assert.equal(f.call('remove',{id:first.id,revision:first.revision}).ok,true);assert.equal(f.call('save',{record:first}).ok,false);
 });
 test('texto enviado como stringValue, sem fórmulas executáveis',()=>{
-  const f=fixture(),result=f.call('save',{record:{...f.record,client:'=IMPORTXML("x";"y")'}});assert.equal(result.ok,true);assert.equal(f.rows[0][0],'=IMPORTXML("x";"y")');
+  const f=fixture(),result=f.call('save',{record:{...f.record,client:'=IMPORTXML("X";"Y")'}});assert.equal(result.ok,true);assert.equal(f.rows[0][0],'=IMPORTXML("X";"Y")');
 });
 test('CPF inválido, corpo inválido e campos longos recusados',()=>{
   const f=fixture();assert.equal(f.call('save',{record:{...f.record,cpf:'11111111111'}}).ok,false);
@@ -64,4 +64,16 @@ test('bloqueio do Google informa espaço e permissão sem confirmar gravação',
 test('CNPJ numérico e alfanumérico preservados; dígitos inválidos rejeitados',()=>{
  for(const cpf of ['11222333000181','12ABC34501DE35','04252011000110']){const f=fixture();const r=f.call('save',{record:{...f.record,cpf}});assert.equal(r.ok,true);assert.equal(r.record.cpf,cpf);}
  for(const cpf of ['11222333000182','12ABC34501DE36','00000000000000']){const f=fixture();assert.equal(f.call('save',{record:{...f.record,cpf}}).ok,false);}
+});
+
+test('REQ e caixa: nomes, centavos, concorrência e preservação na edição',()=>{
+ const f=fixture(),first=f.call('save',{record:{...f.record,value:'req',client:'  José   da silva '}}).record;
+ assert.equal(first.value,'REQ');assert.equal(first.client,'JOSÉ DA SILVA');assert.equal(first.cashClient,'');assert.equal(first.cashCents,'');
+ const payload={id:first.id,revision:first.revision,cashClient:'  ação  veículos ',cashCents:'8050'};
+ const saved=f.call('cash-save',payload);assert.equal(saved.ok,true);assert.equal(saved.record.cashClient,'AÇÃO VEÍCULOS');assert.equal(saved.record.cashCents,'8050');
+ assert.equal(f.call('cash-save',payload).ok,true);assert.equal(f.writes,2);
+ assert.equal(f.call('cash-save',{...payload,cashCents:'9000'}).ok,false);
+ for(const value of ['-1','80.50','1e3','1000000000'])assert.equal(f.call('cash-save',{...payload,revision:saved.record.revision,cashCents:value}).ok,false);
+ const edited=f.call('save',{record:{...saved.record,model:'Outro modelo'}}).record;assert.equal(edited.cashCents,'8050');assert.equal(edited.cashClient,'AÇÃO VEÍCULOS');
+ assert.equal(f.call('remove',{id:edited.id,revision:edited.revision}).ok,true);assert.equal(f.rows[0][20],'');assert.equal(f.rows[0][21],'');
 });

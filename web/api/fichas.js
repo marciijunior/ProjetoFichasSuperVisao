@@ -66,10 +66,11 @@ async function handler(req,res){
     token=typeof data.token==='string'?data.token.trim():'';
     if(!/^[a-zA-Z0-9_-]{32,128}$/.test(token))return reply(res,401,{ok:false,error:'Chave de acesso inválida.'});
   }else if(!token)return reply(res,401,{ok:false,error:'Entre novamente com sua chave de acesso. Seu rascunho foi mantido.'});
-  if(!['login','list','save','remove'].includes(action))return reply(res,400,{ok:false,error:'Ação inválida.'});
+  if(!['login','list','save','remove','cash-save'].includes(action))return reply(res,400,{ok:false,error:'Ação inválida.'});
   const payload={action:action==='login'?'ping':action,token};
   if(action==='save')payload.record=data.record;
   if(action==='remove'){payload.id=data.id;payload.revision=data.revision;}
+  if(action==='cash-save'){payload.id=data.id;payload.revision=data.revision;payload.cashClient=data.cashClient;payload.cashCents=data.cashCents;}
   let result;
   // Same record ID/revision makes retries safe; the Sheets script is idempotent.
   for(let attempt=0;attempt<2;attempt++){

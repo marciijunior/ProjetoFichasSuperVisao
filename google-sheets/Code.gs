@@ -2,15 +2,19 @@
 // Execute configurar uma vez e implante como aplicativo da Web.
 const SPREADSHEET_ID = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
 const TAB_NAME = 'Fichas';
-const KEYS = ['client','cpf','model','plate','value','date','phone','brand','city','state','chassis','renavam','fuel','power','year','color','engine','id','updatedAt','deleted'];
-const HEADERS = ['Nome do cliente','CPF','Modelo','Placa','Número','Data de realização','Telefone','Marca','Município','UF','Chassi','Renavam','Combustível','Potência do motor','Ano de fabricação','Cor','Número do motor','ID da ficha','Atualizado em','Excluída'];
+const KEYS = ['client','cpf','model','plate','value','date','phone','brand','city','state','chassis','renavam','fuel','power','year','color','engine','id','updatedAt','deleted','cashClient','cashCents'];
+const HEADERS = ['Nome do cliente','CPF','Modelo','Placa','Número','Data de realização','Telefone','Marca','Município','UF','Chassi','Renavam','Combustível','Potência do motor','Ano de fabricação','Cor','Número do motor','ID da ficha','Atualizado em','Excluída','Cliente do caixa','Valor do caixa em centavos'];
 const LIMITS = {client:120,cpf:14,model:100,plate:8,value:30,date:10,phone:22,brand:60,city:100,state:2,chassis:17,renavam:11,fuel:60,power:60,year:4,color:40,engine:60};
 function publicError(message) { const error=new Error(message);error.publicMessage=message;throw error; }
 function sheet_() {
   const sheet=SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(TAB_NAME);
   if(!sheet)publicError('A aba Fichas não foi encontrada.');
   const headers=sheet.getRange(1,1,1,HEADERS.length).getDisplayValues()[0];
-  if(JSON.stringify(headers)!==JSON.stringify(HEADERS))publicError('Os cabeçalhos da aba Fichas foram alterados. Restaure a estrutura antes de salvar.');
+  if(JSON.stringify(headers.slice(0,20))===JSON.stringify(HEADERS.slice(0,20))&&headers.slice(20).every(v=>!v)){
+    const extra=sheet.getRange(1,21,Math.max(1,sheet.getLastRow()),2).getDisplayValues();
+    if(extra.some(row=>row.some(Boolean)))publicError('As colunas U e V precisam estar vazias para ativar o caixa.');
+    sheet.getRange(1,21,1,2).setValues([HEADERS.slice(20)]);
+  }else if(JSON.stringify(headers)!==JSON.stringify(HEADERS))publicError('Os cabeçalhos da aba Fichas foram alterados. Restaure a estrutura antes de salvar.');
   return sheet;
 }
 function configurar() {
@@ -30,7 +34,7 @@ function revision_(row) {
   return Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,JSON.stringify(row)));
 }
 function record_(row) {
-  const record={};KEYS.forEach((k,i)=>record[k]=String(row[i]||''));record.revision=revision_(row);return record;
+  const record={};KEYS.forEach((k,i)=>record[k]=String(row[i]||''));record.revision=revision_(row);record.client=normalName_(record.client);record.cashClient=normalName_(record.cashClient);return record;
 }
 function clean_(input) {
   if(!input||typeof input!=='object')publicError('Ficha inválida.');
@@ -38,10 +42,11 @@ function clean_(input) {
   Object.keys(LIMITS).forEach(k=>{result[k]=String(input[k]??'').trim();if(result[k].length>LIMITS[k])publicError('Um campo excede o tamanho permitido.');});
   result.cpf=result.cpf.toUpperCase().replace(/[.\/\s-]/g,'');result.plate=result.plate.toUpperCase().replace(/[-\s]/g,'');
   result.chassis=result.chassis.toUpperCase();result.engine=result.engine.toUpperCase();
+  result.client=normalName_(result.client);result.value=result.value.toUpperCase();
   if(!result.client||!result.model)publicError('Nome e modelo são obrigatórios.');
   if(!validCpf_(result.cpf)&&!validCnpj_(result.cpf))publicError('Informe um CPF ou CNPJ válido.');
   if(!/^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(result.plate))publicError('Informe uma placa válida.');
-  if(result.value&&!/^\d{1,30}$/.test(result.value))publicError('Número deve conter somente algarismos.');
+  if(result.value&&!/^(?:\d{1,30}|REQ)$/.test(result.value))publicError('Informe um número ou REQ.');
   if(result.date){
     const parsed=new Date(result.date+'T12:00:00Z');
     if(!/^\d{4}-\d{2}-\d{2}$/.test(result.date)||!Number.isFinite(parsed.valueOf())||parsed.toISOString().slice(0,10)!==result.date)publicError('Informe uma data válida.');
@@ -59,7 +64,7 @@ function handle_(request) {
   const secret=PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN');
   if(!secret||secret.length<32||typeof request.token!=='string'||request.token!==secret)publicError('Chave de acesso inválida.');
   if(request.spreadsheetId!==SPREADSHEET_ID)publicError('Planilha de destino incorreta.');
-  if(!['ping','list','save','remove'].includes(request.action))publicError('Ação inválida.');
+  if(!['ping','list','save','remove','cash-save'].includes(request.action))publicError('Ação inválida.');
   const lock=LockService.getScriptLock();
   if(!lock.tryLock(20000))publicError('Outra ficha está sendo salva. Tente novamente.');
   try {
@@ -71,6 +76,16 @@ function handle_(request) {
     const id=request.action==='save'?String(request.record?.id||''):String(request.id||'');
     if(!/^[a-zA-Z0-9-]{8,64}$/.test(id))publicError('Identificador de ficha inválido.');
     const index=rows.findIndex(row=>row[17]===id),existing=index<0?null:record_(rows[index]);
+    if(request.action==='cash-save'){
+      if(!existing||existing.deleted==='1')publicError('A ficha não está mais disponível. Atualize o caixa.');
+      const client=normalName_(request.cashClient),cents=String(request.cashCents??'').trim();
+      if(client.length>120)publicError('O cliente do caixa deve ter até 120 caracteres.');
+      if(cents&&!/^(?:0|[1-9]\d{0,8})$/.test(cents))publicError('Informe um valor válido, com no máximo duas casas decimais.');
+      if(existing.cashClient===client&&existing.cashCents===cents)return {record:existing};
+      if(request.revision!==existing.revision)publicError('Esta ficha mudou. Atualize o caixa antes de salvar. Seus campos continuam disponíveis.');
+      existing.cashClient=client;existing.cashCents=cents;existing.updatedAt=new Date().toISOString();
+      const updated=KEYS.map(k=>existing[k]||'');write_(sheet,index+2,updated);return {record:record_(updated)};
+    }
     if(request.action==='remove'){
       if(!existing||existing.deleted==='1')return {};
       if(request.revision!==existing.revision)publicError('Esta ficha mudou. Atualize as fichas antes de excluir.');
@@ -82,6 +97,7 @@ function handle_(request) {
     if(existing?.deleted==='1')publicError('Esta ficha já foi excluída. Crie uma nova ficha.');
     if(!existing&&request.record.revision)publicError('A ficha original não está mais na planilha. Atualize as fichas.');
     record.date=record.date||existing?.date||Utilities.formatDate(new Date(),'America/Sao_Paulo','yyyy-MM-dd');
+    record.cashClient=existing?.cashClient||'';record.cashCents=existing?.cashCents||'';
     if(existing){
       const same=Object.keys(LIMITS).every(k=>record[k]===existing[k]);
       if(same)return {record:existing};
@@ -93,6 +109,7 @@ function handle_(request) {
     return {record:record_(row)};
   }finally{lock.releaseLock();}
 }
+function normalName_(value){return String(value??'').normalize('NFC').trim().replace(/\s+/g,' ').toLocaleUpperCase('pt-BR');}
 function doPost(e) {
   let response;
   try{

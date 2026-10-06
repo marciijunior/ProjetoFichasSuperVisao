@@ -29,3 +29,9 @@ Rascunhos permanecem apenas no navegador e são removidos ao sair da conta. Cred
 - `google-sheets/`: conector Apps Script.
 - `tests/`: verificações com dados fictícios.
 - `tools/update-catalogs.cjs`: atualização de catálogos públicos.
+
+## REQ e caixa diário
+
+A opção REQ identifica requisições. A seção Fechamento do caixa lista as fichas do dia de São Paulo, com cliente e valor inicialmente vazios, valores sugeridos de R$ 80 a R$ 600 (a cada R$ 10) e entrada manual. O total e as requisições são agrupados por cliente. Nomes são normalizados em maiúsculas preservando acentos.
+
+O Apps Script acrescenta as colunas U/V (cliente do caixa e valor em centavos) apenas quando vazias, preservando as fichas existentes. Publique a nova versão do script antes do frontend. O caixa usa as mesmas permissões e sessão autenticada das fichas. Alterações pendentes permanecem neste navegador até salvar ou sair.
