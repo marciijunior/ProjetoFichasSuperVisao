@@ -2,19 +2,21 @@
 // Execute configurar uma vez e implante como aplicativo da Web.
 const SPREADSHEET_ID = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
 const TAB_NAME = 'Fichas';
-const KEYS = ['client','cpf','model','plate','value','date','phone','brand','city','state','chassis','renavam','fuel','power','year','color','engine','id','updatedAt','deleted','cashClient','cashCents'];
-const HEADERS = ['Nome do cliente','CPF','Modelo','Placa','Número','Data de realização','Telefone','Marca','Município','UF','Chassi','Renavam','Combustível','Potência do motor','Ano de fabricação','Cor','Número do motor','ID da ficha','Atualizado em','Excluída','Cliente do caixa','Valor do caixa em centavos'];
+const KEYS = ['client','cpf','model','plate','value','date','phone','brand','city','state','chassis','renavam','fuel','power','year','color','engine','id','updatedAt','deleted','cashClient','cashCents','cashPayments'];
+const HEADERS = ['Nome do cliente','CPF','Modelo','Placa','Número','Data de realização','Telefone','Marca','Município','UF','Chassi','Renavam','Combustível','Potência do motor','Ano de fabricação','Cor','Número do motor','ID da ficha','Atualizado em','Excluída','Cliente do caixa','Valor do caixa em centavos','Pagamentos do caixa'];
 const LIMITS = {client:120,cpf:14,model:100,plate:8,value:30,date:10,phone:22,brand:60,city:100,state:2,chassis:17,renavam:11,fuel:60,power:60,year:4,color:40,engine:60};
 function publicError(message) { const error=new Error(message);error.publicMessage=message;throw error; }
 function sheet_() {
   const sheet=SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(TAB_NAME);
   if(!sheet)publicError('A aba Fichas não foi encontrada.');
   const headers=sheet.getRange(1,1,1,HEADERS.length).getDisplayValues()[0];
-  if(JSON.stringify(headers.slice(0,20))===JSON.stringify(HEADERS.slice(0,20))&&headers.slice(20).every(v=>!v)){
-    const extra=sheet.getRange(1,21,Math.max(1,sheet.getLastRow()),2).getDisplayValues();
-    if(extra.some(row=>row.some(Boolean)))publicError('As colunas U e V precisam estar vazias para ativar o caixa.');
-    sheet.getRange(1,21,1,2).setValues([HEADERS.slice(20)]);
-  }else if(JSON.stringify(headers)!==JSON.stringify(HEADERS))publicError('Os cabeçalhos da aba Fichas foram alterados. Restaure a estrutura antes de salvar.');
+  if(JSON.stringify(headers)!==JSON.stringify(HEADERS)){
+    const size=[22,20].find(n=>JSON.stringify(headers.slice(0,n))===JSON.stringify(HEADERS.slice(0,n))&&headers.slice(n).every(v=>!v));
+    if(!size)publicError('Os cabeçalhos da aba Fichas foram alterados. Restaure a estrutura antes de salvar.');
+    const extra=sheet.getRange(1,size+1,Math.max(1,sheet.getLastRow()),HEADERS.length-size).getDisplayValues();
+    if(extra.some(row=>row.some(Boolean)))publicError('As novas colunas do caixa precisam estar vazias antes da atualização.');
+    sheet.getRange(1,size+1,1,HEADERS.length-size).setValues([HEADERS.slice(size)]);
+  }
   return sheet;
 }
 function configurar() {
@@ -78,12 +80,13 @@ function handle_(request) {
     const index=rows.findIndex(row=>row[17]===id),existing=index<0?null:record_(rows[index]);
     if(request.action==='cash-save'){
       if(!existing||existing.deleted==='1')publicError('A ficha não está mais disponível. Atualize o caixa.');
-      const client=normalName_(request.cashClient),cents=String(request.cashCents??'').trim();
+      const client=normalName_(request.cashClient),cents=String(request.cashCents??'').trim().toUpperCase();
       if(client.length>120)publicError('O cliente do caixa deve ter até 120 caracteres.');
-      if(cents&&!/^(?:0|[1-9]\d{0,8})$/.test(cents))publicError('Informe um valor válido, com no máximo duas casas decimais.');
-      if(existing.cashClient===client&&existing.cashCents===cents)return {record:existing};
+      if(cents&&cents!=='REQ'&&!/^(?:0|[1-9]\d{0,8})$/.test(cents))publicError('Informe um valor válido, com no máximo duas casas decimais.');
+      const payments=payments_(request.cashPayments??existing.cashPayments,cents,request.cashPayments!==undefined);
+      if(existing.cashClient===client&&existing.cashCents===cents&&existing.cashPayments===payments)return {record:existing};
       if(request.revision!==existing.revision)publicError('Esta ficha mudou. Atualize o caixa antes de salvar. Seus campos continuam disponíveis.');
-      existing.cashClient=client;existing.cashCents=cents;existing.updatedAt=new Date().toISOString();
+      existing.cashClient=client;existing.cashCents=cents;existing.cashPayments=payments;existing.updatedAt=new Date().toISOString();
       const updated=KEYS.map(k=>existing[k]||'');write_(sheet,index+2,updated);return {record:record_(updated)};
     }
     if(request.action==='remove'){
@@ -97,7 +100,7 @@ function handle_(request) {
     if(existing?.deleted==='1')publicError('Esta ficha já foi excluída. Crie uma nova ficha.');
     if(!existing&&request.record.revision)publicError('A ficha original não está mais na planilha. Atualize as fichas.');
     record.date=record.date||existing?.date||Utilities.formatDate(new Date(),'America/Sao_Paulo','yyyy-MM-dd');
-    record.cashClient=existing?.cashClient||'';record.cashCents=existing?.cashCents||'';
+    record.cashClient=existing?.cashClient||'';record.cashCents=existing?.cashCents||'';record.cashPayments=existing?.cashPayments||'';
     if(existing){
       const same=Object.keys(LIMITS).every(k=>record[k]===existing[k]);
       if(same)return {record:existing};
@@ -133,3 +136,15 @@ function doPost(e) {
       const rest=sum%11;if(Number(v[size])!==(rest<2?0:11-rest))return false;
     }return true;
   }
+
+function payments_(raw,cents,required){
+  let data;try{data=typeof raw==='string'?JSON.parse(raw||'{}'):(raw||{});}catch{publicError('Métodos de pagamento inválidos.');}
+  if(!data||Array.isArray(data)||typeof data!=='object')publicError('Métodos de pagamento inválidos.');
+  const allowed=['dinheiro','pix','debito','credito','transferencia','boleto','cheque','carteira','outros'],keys=Object.keys(data);
+  if(keys.some(k=>!allowed.includes(k)))publicError('Método de pagamento inválido.');
+  if(cents===''||cents==='REQ'){if(keys.length)publicError('REQ ou valor em branco não deve ter pagamento.');return '';}
+  let total=0;const result={};for(const key of allowed){if(!keys.includes(key))continue;const value=String(data[key]);if(!/^(?:0|[1-9]\d{0,8})$/.test(value))publicError('Valor de pagamento inválido.');total+=Number(value);result[key]=value;}
+  if(!keys.length){if(required)publicError('Selecione um método de pagamento.');return '';}
+  if(total!==Number(cents))publicError('A soma dos pagamentos deve ser igual ao valor da vistoria.');
+  return JSON.stringify(result);
+}

@@ -70,7 +70,7 @@ async function handler(req,res){
   const payload={action:action==='login'?'ping':action,token};
   if(action==='save')payload.record=data.record;
   if(action==='remove'){payload.id=data.id;payload.revision=data.revision;}
-  if(action==='cash-save'){payload.id=data.id;payload.revision=data.revision;payload.cashClient=data.cashClient;payload.cashCents=data.cashCents;}
+  if(action==='cash-save'){payload.id=data.id;payload.revision=data.revision;payload.cashClient=data.cashClient;payload.cashCents=data.cashCents;payload.cashPayments=data.cashPayments;}
   let result;
   // Same record ID/revision makes retries safe; the Sheets script is idempotent.
   for(let attempt=0;attempt<2;attempt++){

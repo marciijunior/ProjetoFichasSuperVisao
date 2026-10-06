@@ -35,3 +35,9 @@ Rascunhos permanecem apenas no navegador e são removidos ao sair da conta. Cred
 A opção REQ identifica requisições. A seção Fechamento do caixa lista as fichas do dia de São Paulo, com cliente e valor inicialmente vazios, valores sugeridos de R$ 80 a R$ 600 (a cada R$ 10) e entrada manual. O total e as requisições são agrupados por cliente. Nomes são normalizados em maiúsculas preservando acentos.
 
 O Apps Script acrescenta as colunas U/V (cliente do caixa e valor em centavos) apenas quando vazias, preservando as fichas existentes. Publique a nova versão do script antes do frontend. O caixa usa as mesmas permissões e sessão autenticada das fichas. Alterações pendentes permanecem neste navegador até salvar ou sair.
+
+## Métodos de pagamento
+
+No caixa, selecione REQ ou valor. REQ não compõe os totais monetários. Com um método marcado, todo o valor é atribuído a ele. Com dois ou mais, informe as parcelas; a soma deve ser igual ao valor da vistoria. Métodos: Dinheiro, Pix, Débito, Crédito, Transferência, Boleto, Cheque, Carteira digital e Outros. Valores legados sem método aparecem em Sem método / divisão pendente.
+
+A coluna W, Pagamentos do caixa, armazena os métodos e parcelas em centavos. A migração aceita cabeçalhos anteriores de 20 ou 22 colunas e só acrescenta campos em colunas vazias. Publique o Apps Script antes do frontend.

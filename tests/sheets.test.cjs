@@ -2,10 +2,11 @@ const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/st
 const {test}=require('node:test');
 const source=fs.readFileSync('google-sheets/Code.gs','utf8');
 const ID='test-spreadsheet-id',TOKEN='a'.repeat(64);
-function fixture(){
+function fixture(headerCount=23,occupied=false){
   let rows=[],writes=0,locked=false,blocked=false;
-  const headers=['Nome do cliente','CPF','Modelo','Placa','Número','Data de realização','Telefone','Marca','Município','UF','Chassi','Renavam','Combustível','Potência do motor','Ano de fabricação','Cor','Número do motor','ID da ficha','Atualizado em','Excluída','Cliente do caixa','Valor do caixa em centavos'];
-  const sheet={getRange:(row,col,count)=>({getDisplayValues:()=>row===1?[headers]:rows.slice(row-2,row-2+count).map(r=>r.slice())}),getLastRow:()=>rows.length+1,getMaxRows:()=>1000,getSheetId:()=>1100};
+  const headers=['Nome do cliente','CPF','Modelo','Placa','Número','Data de realização','Telefone','Marca','Município','UF','Chassi','Renavam','Combustível','Potência do motor','Ano de fabricação','Cor','Número do motor','ID da ficha','Atualizado em','Excluída','Cliente do caixa','Valor do caixa em centavos','Pagamentos do caixa'];
+  for(let i=headerCount;i<headers.length;i++)headers[i]='';if(occupied)headers[22]='DADO EXISTENTE';
+  const sheet={getRange:(row,col,count,width)=>({getDisplayValues:()=>row===1?[headers.slice(col-1,col-1+width)]:rows.slice(row-2,row-2+count).map(r=>r.slice(col-1,col-1+width)),setValues:data=>data[0].forEach((v,i)=>headers[col-1+i]=v)}),getLastRow:()=>rows.length+1,getMaxRows:()=>1000,getSheetId:()=>1100};
   const ctx=vm.createContext({
     SpreadsheetApp:{openById:id=>{assert.equal(id,ID);return {getSheetByName:()=>sheet};}},
     PropertiesService:{getScriptProperties:()=>({getProperty:key=>key==='SPREADSHEET_ID'?ID:TOKEN})},
@@ -17,7 +18,7 @@ function fixture(){
   vm.runInContext(source,ctx);
   const call=(action,payload={})=>ctx.doPost({postData:{contents:JSON.stringify({action,spreadsheetId:ID,token:TOKEN,...payload})}});
   const record={id:'test-record-0001',client:'Cliente fictício',cpf:'52998224725',model:'Modelo de teste',plate:'abc1d23'};
-  return {call,record,rows,blockWrites:()=>blocked=true,get writes(){return writes;}};
+  return {call,record,rows,headers,blockWrites:()=>blocked=true,get writes(){return writes;}};
 }
 test('quatro campos obrigatórios; data automática; opcionais vazios',()=>{
   const f=fixture(),result=f.call('save',{record:f.record});assert.equal(result.ok,true);assert.equal(result.record.date,'2026-10-05');assert.equal(result.record.value,'');assert.equal(result.record.plate,'ABC1D23');assert.equal(f.call('list').records.length,1);
@@ -77,3 +78,17 @@ test('REQ e caixa: nomes, centavos, concorrência e preservação na edição',(
  const edited=f.call('save',{record:{...saved.record,model:'Outro modelo'}}).record;assert.equal(edited.cashCents,'8050');assert.equal(edited.cashClient,'AÇÃO VEÍCULOS');
  assert.equal(f.call('remove',{id:edited.id,revision:edited.revision}).ok,true);assert.equal(f.rows[0][20],'');assert.equal(f.rows[0][21],'');
 });
+test('caixa aceita REQ ou pagamentos e valida soma sem alterar ficha',()=>{
+ const f=fixture(),first=f.call('save',{record:f.record}).record;
+ let saved=f.call('cash-save',{id:first.id,revision:first.revision,cashClient:'teste',cashCents:'9000',cashPayments:{pix:'5000',dinheiro:'4000'}}).record;
+ assert.equal(saved.cashPayments,'{"dinheiro":"4000","pix":"5000"}');
+ const again=f.call('cash-save',{id:first.id,revision:first.revision,cashClient:'teste',cashCents:'9000',cashPayments:{dinheiro:'4000',pix:'5000'}});assert.equal(again.ok,true);assert.equal(f.writes,2);
+ for(const payments of [{pix:'9001'},{pix:'4000',credito:'4000'},{pix:'90.00'},{fake:'9000'},{}])assert.equal(f.call('cash-save',{id:first.id,revision:saved.revision,cashCents:'9000',cashPayments:payments}).ok,false);
+ assert.equal(f.call('cash-save',{id:first.id,revision:saved.revision,cashCents:'REQ',cashPayments:{pix:'9000'}}).ok,false);
+ saved=f.call('save',{record:{...saved,model:'Editado'}}).record;assert.equal(saved.cashPayments,'{"dinheiro":"4000","pix":"5000"}');
+ saved=f.call('cash-save',{id:first.id,revision:saved.revision,cashClient:'teste',cashCents:'REQ',cashPayments:{}}).record;assert.equal(saved.cashCents,'REQ');assert.equal(saved.cashPayments,'');assert.equal(saved.value,'');
+ const listed=f.call('list').records[0];assert.equal(listed.cashCents,'REQ');
+ f.call('remove',{id:saved.id,revision:saved.revision});assert.equal(f.rows[0][22],'');
+});
+
+test('migração preserva dados e acrescenta somente colunas vazias',()=>{for(const count of [20,22,23]){const f=fixture(count);assert.equal(f.call('ping').ok,true);assert.equal(f.headers[22],'Pagamentos do caixa');assert.equal(f.headers[0],'Nome do cliente');}const f=fixture(22,true);assert.equal(f.call('ping').ok,false);assert.equal(f.headers[22],'DADO EXISTENTE');});
