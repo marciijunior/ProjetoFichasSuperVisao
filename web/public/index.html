@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' blob: data:; connect-src 'self'; object-src 'none'; base-uri 'none'">
+  <link rel="icon" type="image/svg+xml" href="/fichario-vermelho.svg"><meta name="theme-color" content="#071d53"><title>SuperVisão • Vistorias Automotivas</title>
+  <link rel="stylesheet" href="style.css"><link rel="stylesheet" href="theme.css"><script defer src="parser.js"></script><script defer src="catalog-data.js"></script><script defer src="catalog.js"></script><script defer src="analysis.js"></script><script defer src="dashboard.js"></script><script defer src="app.js"></script>
+</head>
+<body>
+<svg class="sprite" xmlns="http://www.w3.org/2000/svg"><defs>
+  <symbol id="icon-edit" viewBox="0 0 24 24"><path d="m16 3 5 5L9 20l-6 1 1-6zM14 5l5 5"/></symbol><symbol id="icon-trash" viewBox="0 0 24 24"><path d="M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M10 10v7m4-7v7"/></symbol><symbol id="icon-refresh" viewBox="0 0 24 24"><path d="M20 8a8 8 0 0 0-14-3L3 8m0-5v5h5M4 16a8 8 0 0 0 14 3l3-3m0 5v-5h-5"/></symbol><symbol id="icon-logout" viewBox="0 0 24 24"><path d="M9 3H3v18h6M9 12h12m-5-5 5 5-5 5"/></symbol><symbol id="icon-clear" viewBox="0 0 24 24"><path d="m5 5 14 14M19 5 5 19"/></symbol><symbol id="icon-shield" viewBox="0 0 24 24"><path d="M12 3 21 7v5c0 5-5 8-9 10-4-2-9-5-9-10V7z"/><path d="m8 12 3 3 5-6"/></symbol>
+  <symbol id="icon-grid" viewBox="0 0 24 24"><path d="M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h7v7h-7z"/></symbol><symbol id="icon-chart" viewBox="0 0 24 24"><path d="M4 20V12m6 8V7m6 13V3m6 17V9"/></symbol><symbol id="icon-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="13" height="13" rx="2"/><path d="M16 8V3H3v13h5"/></symbol><symbol id="icon-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="icon-camera" viewBox="0 0 24 24"><path d="m8 5 1-2h6l1 2h4a2 2 0 0 1 2 2v12H2V7a2 2 0 0 1 2-2z"/><circle cx="12" cy="12" r="4"/></symbol>
+  <symbol id="icon-car" viewBox="0 0 24 24"><path d="m4 9 2-6h12l2 6M3 9h18v10H3zM5 19v2m14-2v2M6 14h2m8 0h2"/></symbol>
+  <symbol id="icon-search" viewBox="0 0 24 24"><circle cx="10" cy="10" r="7"/><path d="m15 15 6 6"/></symbol>
+  <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
+  <symbol id="icon-back" viewBox="0 0 24 24"><path d="m14 5-7 7 7 7M7 12h14"/></symbol>
+  <symbol id="icon-file" viewBox="0 0 24 24"><path d="M14 2H4v20h16V8zM14 2v6h6M8 13h8m-8 4h6"/></symbol>
+  <symbol id="icon-user" viewBox="0 0 24 24"><circle cx="12" cy="7" r="4"/><path d="M4 22v-3a8 8 0 0 1 16 0v3"/></symbol>
+  <symbol id="icon-download" viewBox="0 0 24 24"><path d="M12 3v12m-5-5 5 5 5-5M3 16v5h18v-5"/></symbol>
+  <symbol id="icon-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+  <symbol id="icon-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8" r="1"/><path d="m3 18 6-6 4 4 3-3 5 5"/></symbol>
+</defs></svg>
+<header class="topbar"><div class="brand"><img class="brand-logo" src="unidade-logo.jpg" alt="SuperVisão — Vistorias Automotivas" width="500" height="333"></div><span class="local-badge"><i></i> <span id="connection-badge">Acesso restrito</span></span></header>
+<section id="login" class="login panel"><h1>Acesso de membros</h1><form id="login-form"><div class="fields"><label class="wide">Chave de acesso<input id="access-key" type="password" autocomplete="current-password" required placeholder="Digite sua chave de acesso"></label></div><p id="login-error" role="alert" hidden></p><button class="primary" type="submit" id="login-submit">Entrar</button></form><p class="login-note">Acesso restrito à equipe SuperVisão.</p></section>
+<nav class="side-nav" aria-label="Menu principal"><span class="nav-brand"><img src="/supervisao-simbolo.png" alt="SuperVisão" width="44" height="44"></span><button id="nav-home" type="button" title="Fichas" aria-label="Fichas"><svg><use href="#icon-grid"/></svg></button><button id="nav-new" type="button" title="Nova ficha" aria-label="Nova ficha"><svg><use href="#icon-plus"/></svg></button><button id="nav-drafts" type="button" title="Rascunhos" aria-label="Rascunhos"><svg><use href="#icon-file"/></svg></button><button id="nav-analytics" type="button" title="Análises" aria-label="Análises"><svg><use href="#icon-chart"/></svg></button><button id="nav-logout" type="button" title="Sair" aria-label="Sair"><svg><use href="#icon-logout"/></svg></button></nav><main id="workspace" hidden>
+<section id="home">
+  <div class="home-heading"><h1>Fichas</h1><div class="home-tools"><button id="refresh" class="text-button" type="button">Atualizar fichas</button><button id="logout" class="text-button" type="button">Sair</button></div></div>
+  <p id="sync-status" class="compact-status" role="status">Carregando fichas…</p>
+  <div class="home-summary"><div class="stats"><div><strong id="total">0</strong><span>Fichas salvas</span></div><div><strong id="today">0</strong><span>Vistorias hoje</span></div></div><div class="home-shortcuts"><button class="new-card" id="new"><svg aria-hidden="true"><use href="#icon-plus"/></svg><strong>Nova ficha</strong></button><button id="open-analytics" class="analytics-launch" type="button"><strong>Análises</strong><span aria-hidden="true">↗</span></button></div></div>
+  <div class="section-heading"><h2>Vistorias de hoje</h2><button class="text-button" id="export"><svg><use href="#icon-download"/></svg> Exportar</button></div>
+  <label class="search"><svg><use href="#icon-search"/></svg><input id="search" type="search" placeholder="Buscar cliente, placa ou telefone" aria-label="Buscar cadastros"></label>
+  <div id="records" class="records"></div>
+
+</section>
+<section id="drafts-view" hidden aria-label="Rascunhos"><div class="home-heading"><h1>Rascunhos <span id="draft-count">0</span></h1></div><div id="draft-list"></div><p class="draft-storage-note">Salvos neste navegador até sair da conta.</p></section>
+<section id="analytics" hidden aria-label="Análises das vistorias">
+  <div class="dashboard-heading"><div><button type="button" id="analytics-back" class="text-button">← Voltar às fichas</button><h1>Análises das vistorias</h1></div><button id="analytics-refresh" class="secondary" type="button">Atualizar dados</button></div>
+  <p id="analytics-status" class="analytics-status" role="status"></p>
+  <section class="panel filter-panel" aria-labelledby="filter-title"><div class="section-heading"><h2 id="filter-title">Filtros</h2><button id="clear-filters" class="text-button" type="button">Limpar filtros</button></div>
+    <div class="period-shortcuts" role="group" aria-label="Períodos rápidos"><button type="button" class="secondary" data-period="today">Hoje</button><button type="button" class="secondary" data-period="all">Todo o período</button><button type="button" class="secondary" data-period="7">Últimos 7 dias</button><button type="button" class="secondary" data-period="30">Últimos 30 dias</button><button type="button" class="secondary" data-period="month">Este mês</button></div>
+    <div class="fields filter-fields"><label>De<input id="filter-from" type="date"></label><label>Até<input id="filter-to" type="date"></label><label class="wide">Buscar nas fichas<input id="filter-query" type="search" placeholder="Cliente, CPF/CNPJ, placa, telefone ou veículo"></label></div>
+    <details class="extra-filters" open><summary>Veículo e localização</summary><div id="category-filters" class="fields filter-fields"></div></details>
+    <p id="filter-error" class="form-error" role="alert" hidden></p><div id="active-filters" class="active-filters" aria-label="Filtros aplicados"></div>
+  </section>
+  <div id="analytics-metrics" class="analytics-metrics" aria-live="polite"></div>
+  <p id="analytics-empty" class="empty" hidden>Nenhuma ficha corresponde a esses filtros. Ajuste o período ou limpe os filtros.</p>
+  <div class="chart-grid">
+    <section class="panel chart-panel chart-wide"><div class="chart-heading"><div><h2>Vistorias ao longo do tempo</h2><p>Clique em um ponto ou coluna para selecionar o período.</p></div><div class="chart-controls"><label>Agrupar por<select id="time-unit"><option value="day">Dia</option><option value="month">Mês</option></select></label><label>Visualização<select id="time-type"><option value="line">Linha</option><option value="bar">Colunas</option></select></label></div></div><div id="time-chart" class="time-chart"></div><p id="time-note" class="chart-note"></p></section>
+    <section class="panel chart-panel"><div class="chart-heading"><div><h2>Perfil dos veículos</h2><p>Clique para filtrar uma categoria.</p></div></div><div class="chart-controls"><label>Comparar por<select id="breakdown-field"></select></label><label>Visualização<select id="breakdown-type"><option value="bar">Barras</option><option value="donut">Rosca</option></select></label></div><div id="breakdown-chart" class="category-chart"></div></section>
+    <section class="panel chart-panel"><div class="chart-heading"><div><h2>Distribuição por local</h2></div></div><div class="chart-controls"><label>Comparar por<select id="location-field"><option value="city">Município</option><option value="state">Estado</option></select></label><label>Visualização<select id="location-type"><option value="bar">Barras</option><option value="donut">Rosca</option></select></label></div><div id="location-chart" class="category-chart"></div></section>
+  </div>
+  <section class="panel table-panel"><div class="section-heading"><div><h2>Fichas do período selecionado</h2><p id="table-count"></p></div><button id="export-filtered" type="button" class="secondary">Exportar filtradas</button></div><div class="chart-controls"><label>Ordenar por<select id="table-sort"><option value="newest">Data: mais recentes</option><option value="oldest">Data: mais antigas</option><option value="client">Nome do cliente</option><option value="brand">Marca e modelo</option></select></label></div><div class="table-scroll"><table><thead><tr><th>Data</th><th>Cliente</th><th>CPF / CNPJ</th><th>Veículo</th><th>Placa</th><th>Município / UF</th><th>Número</th><th>Ação</th></tr></thead><tbody id="analysis-rows"></tbody></table></div><div class="pagination"><button id="page-prev" class="secondary" type="button">Anterior</button><span id="page-label" role="status"></span><button id="page-next" class="secondary" type="button">Próxima</button></div></section>
+  <p class="analysis-footnote">Cada ficha salva conta como uma vistoria. Os gráficos usam apenas as fichas disponíveis nesta planilha. Número é uma categoria, sem soma financeira. Campos vazios aparecem como “Não informado”.</p>
+</section>
+<section id="editor" hidden>
+  <div class="editor-heading"><button class="icon-button" id="back" aria-label="Voltar"><svg><use href="#icon-back"/></svg></button><div><span class="eyebrow">CADASTRO VEICULAR</span><h1 id="editor-title">Nova ficha</h1></div><span class="draft-tag">Rascunho</span></div>
+  <form id="form" novalidate>
+    
+    <section class="panel"><div class="panel-heading"><span class="section-icon"><svg><use href="#icon-user"/></svg></span><div><h2>Cliente e ficha</h2><p>Nome, CPF ou CNPJ, modelo e placa são obrigatórios.</p></div></div>
+      <div class="fields"><label class="wide">Nome do cliente <span>*</span><input name="client" autocomplete="name" maxlength="120" required placeholder="Nome completo"></label><label>Telefone<input name="phone" type="tel" autocomplete="tel" maxlength="22" placeholder="(00) 00000-0000"></label><div class="document-field"><label for="document-type">Documento <span>*</span></label><select id="document-type" aria-label="Tipo de documento"><option value="cpf">CPF</option><option value="cnpj">CNPJ</option></select><input required name="cpf" aria-label="CPF" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" autocapitalize="characters" autocomplete="off"></div><label>Data da vistoria<input name="date" type="date" aria-label="Data da vistoria"></label><label>Número <small>(opcional)</small><input name="value" inputmode="numeric" pattern="[0-9]*" maxlength="30" placeholder="Digite ou escolha abaixo"></label><div class="number-suggestions wide" role="group" aria-label="Sugestões de número"><span>Sugestões</span><button type="button" class="secondary" data-number="8">8</button><button type="button" class="secondary" data-number="9">9</button><button type="button" class="secondary" data-number="10">10</button><button type="button" class="secondary" data-number="11">11</button><button type="button" class="secondary" data-number="12">12</button><button type="button" class="secondary" data-number="13">13</button><button type="button" class="secondary" data-number="14">14</button><button type="button" class="secondary" data-number="15">15</button></div></div>
+    </section>
+    <section class="panel"><div class="panel-heading"><span class="section-icon"><svg><use href="#icon-car"/></svg></span><div><h2>Dados do veículo</h2><p>Marca e estado filtram as sugestões de modelo e município.</p></div></div>
+      <div class="fields"><label>Marca<input name="brand" maxlength="60" placeholder="Ex.: Chevrolet"></label><label>Modelo <span>*</span><input required name="model" maxlength="100" placeholder="Ex.: Onix"></label><label>Placa <span>*</span><input required name="plate" class="uppercase" maxlength="8" placeholder="ABC1D23" autocapitalize="characters"></label><label>Ano de fabricação<input name="year" inputmode="numeric" maxlength="4" placeholder="2024"></label><label>Estado (UF)<select name="state"><option value="">Selecione</option></select></label><label>Município<input name="city" maxlength="100" placeholder="Município do veículo"></label><label class="wide">Chassi<input name="chassis" class="uppercase" maxlength="17" placeholder="17 caracteres" autocapitalize="characters"></label><label>Renavam<input name="renavam" inputmode="numeric" maxlength="11" placeholder="Número do Renavam"></label><label>Combustível<input name="fuel" list="fuels" maxlength="60" placeholder="Ex.: Gasolina / Álcool"></label><label>Potência do motor<input name="power" maxlength="60" placeholder="Ex.: 116 cv"></label><label>Cor<input name="color" maxlength="40" placeholder="Ex.: Prata"></label><label class="wide">Número do motor<input name="engine" class="uppercase" maxlength="60" placeholder="Identificação do motor" autocapitalize="characters"></label></div>
+      <datalist id="fuels"><option value="Gasolina"><option value="Álcool"><option value="Gasolina / Álcool"><option value="Diesel"><option value="GNV"><option value="Elétrico"><option value="Híbrido"></datalist>
+    </section>
+    
+    <div id="form-error" class="form-error" role="alert" hidden></div>
+    <div class="save-bar"><button type="button" class="text-button danger" id="discard">Descartar rascunho</button><button type="submit" class="primary"><svg><use href="#icon-check"/></svg>Salvar cadastro</button></div>
+    <button id="delete" type="button" class="delete-button" hidden>Excluir este cadastro</button>
+  </form>
+</section>
+</main>
+<footer>SuperVisão <span>•</span> Vistorias Automotivas</footer>
+<div id="toast" class="toast" role="status" hidden></div>
+<dialog id="confirm"><h2 id="confirm-title"></h2><p id="confirm-message"></p><div class="dialog-actions"><button id="confirm-no" class="secondary">Cancelar</button><button id="confirm-yes" class="primary">Confirmar</button></div></dialog>
+</body></html>
+
+

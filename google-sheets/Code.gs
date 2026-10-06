@@ -1,0 +1,118 @@
+// SuperVisão 1.1 — vincule este script à planilha Fichas SuperVisao.
+// Execute configurar uma vez e implante como aplicativo da Web.
+const SPREADSHEET_ID = PropertiesService.getScriptProperties().getProperty('SPREADSHEET_ID');
+const TAB_NAME = 'Fichas';
+const KEYS = ['client','cpf','model','plate','value','date','phone','brand','city','state','chassis','renavam','fuel','power','year','color','engine','id','updatedAt','deleted'];
+const HEADERS = ['Nome do cliente','CPF','Modelo','Placa','Número','Data de realização','Telefone','Marca','Município','UF','Chassi','Renavam','Combustível','Potência do motor','Ano de fabricação','Cor','Número do motor','ID da ficha','Atualizado em','Excluída'];
+const LIMITS = {client:120,cpf:14,model:100,plate:8,value:30,date:10,phone:22,brand:60,city:100,state:2,chassis:17,renavam:11,fuel:60,power:60,year:4,color:40,engine:60};
+function publicError(message) { const error=new Error(message);error.publicMessage=message;throw error; }
+function sheet_() {
+  const sheet=SpreadsheetApp.openById(SPREADSHEET_ID).getSheetByName(TAB_NAME);
+  if(!sheet)publicError('A aba Fichas não foi encontrada.');
+  const headers=sheet.getRange(1,1,1,HEADERS.length).getDisplayValues()[0];
+  if(JSON.stringify(headers)!==JSON.stringify(HEADERS))publicError('Os cabeçalhos da aba Fichas foram alterados. Restaure a estrutura antes de salvar.');
+  return sheet;
+}
+function configurar() {
+  sheet_();
+  const props=PropertiesService.getScriptProperties();
+  if(!props.getProperty('ACCESS_TOKEN'))props.setProperty('ACCESS_TOKEN',(Utilities.getUuid()+Utilities.getUuid()).replace(/-/g,''));
+  // A chave aparece somente ao proprietário que executa a configuração; não é gravada em células nem em logs.
+  const token=props.getProperty('ACCESS_TOKEN');
+  if(!/^[a-zA-Z0-9_-]{32,128}$/.test(token))publicError('Use uma chave com 32 a 128 letras ou algarismos nas propriedades do script.');
+  console.log('Configuração concluída. A chave está em Configurações do projeto, Propriedades do script, ACCESS_TOKEN.');
+}
+function validCpf_(value) {
+  if(!/^\d{11}$/.test(value)||/^(\d)\1{10}$/.test(value))return false;
+  for(let length=9;length<=10;length++){let sum=0;for(let i=0;i<length;i++)sum+=Number(value[i])*(length+1-i);const digit=(sum*10)%11;if((digit===10?0:digit)!==Number(value[length]))return false;}return true;
+}
+function revision_(row) {
+  return Utilities.base64EncodeWebSafe(Utilities.computeDigest(Utilities.DigestAlgorithm.SHA_256,JSON.stringify(row)));
+}
+function record_(row) {
+  const record={};KEYS.forEach((k,i)=>record[k]=String(row[i]||''));record.revision=revision_(row);return record;
+}
+function clean_(input) {
+  if(!input||typeof input!=='object')publicError('Ficha inválida.');
+  const result={};
+  Object.keys(LIMITS).forEach(k=>{result[k]=String(input[k]??'').trim();if(result[k].length>LIMITS[k])publicError('Um campo excede o tamanho permitido.');});
+  result.cpf=result.cpf.toUpperCase().replace(/[.\/\s-]/g,'');result.plate=result.plate.toUpperCase().replace(/[-\s]/g,'');
+  result.chassis=result.chassis.toUpperCase();result.engine=result.engine.toUpperCase();
+  if(!result.client||!result.model)publicError('Nome e modelo são obrigatórios.');
+  if(!validCpf_(result.cpf)&&!validCnpj_(result.cpf))publicError('Informe um CPF ou CNPJ válido.');
+  if(!/^[A-Z]{3}\d[A-Z0-9]\d{2}$/.test(result.plate))publicError('Informe uma placa válida.');
+  if(result.value&&!/^\d{1,30}$/.test(result.value))publicError('Número deve conter somente algarismos.');
+  if(result.date){
+    const parsed=new Date(result.date+'T12:00:00Z');
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(result.date)||!Number.isFinite(parsed.valueOf())||parsed.toISOString().slice(0,10)!==result.date)publicError('Informe uma data válida.');
+  }
+  result.id=String(input.id||'');
+  if(!/^[a-zA-Z0-9-]{8,64}$/.test(result.id))publicError('Identificador de ficha inválido.');
+  return result;
+}
+function write_(sheet,rowNumber,row) {
+  if(rowNumber>sheet.getMaxRows())sheet.insertRowsAfter(sheet.getMaxRows(),100);
+  // Explicit stringValue prevents spreadsheet formulas and preserves CPF/identifiers with leading zeros.
+  Sheets.Spreadsheets.batchUpdate({requests:[{updateCells:{range:{sheetId:sheet.getSheetId(),startRowIndex:rowNumber-1,endRowIndex:rowNumber,startColumnIndex:0,endColumnIndex:KEYS.length},rows:[{values:row.map(value=>({userEnteredValue:{stringValue:String(value)}}))}],fields:'userEnteredValue'}}]},SPREADSHEET_ID);
+}
+function handle_(request) {
+  const secret=PropertiesService.getScriptProperties().getProperty('ACCESS_TOKEN');
+  if(!secret||secret.length<32||typeof request.token!=='string'||request.token!==secret)publicError('Chave de acesso inválida.');
+  if(request.spreadsheetId!==SPREADSHEET_ID)publicError('Planilha de destino incorreta.');
+  if(!['ping','list','save','remove'].includes(request.action))publicError('Ação inválida.');
+  const lock=LockService.getScriptLock();
+  if(!lock.tryLock(20000))publicError('Outra ficha está sendo salva. Tente novamente.');
+  try {
+    const sheet=sheet_(),count=sheet.getLastRow()-1;
+    if(count>10000)publicError('A planilha ultrapassou o limite de 10.000 registros desta versão.');
+    if(request.action==='ping')return {};
+    const rows=count>0?sheet.getRange(2,1,count,KEYS.length).getDisplayValues():[];
+    if(request.action==='list')return {records:rows.filter(row=>row[17]&&row[19]!=='1').map(record_).reverse()};
+    const id=request.action==='save'?String(request.record?.id||''):String(request.id||'');
+    if(!/^[a-zA-Z0-9-]{8,64}$/.test(id))publicError('Identificador de ficha inválido.');
+    const index=rows.findIndex(row=>row[17]===id),existing=index<0?null:record_(rows[index]);
+    if(request.action==='remove'){
+      if(!existing||existing.deleted==='1')return {};
+      if(request.revision!==existing.revision)publicError('Esta ficha mudou. Atualize as fichas antes de excluir.');
+      const tombstone=KEYS.map(k=>k==='id'?id:k==='updatedAt'?new Date().toISOString():k==='deleted'?'1':'');
+      write_(sheet,index+2,tombstone);return {};
+    }
+    const record=clean_(request.record);
+    if(!existing&&count>=10000)publicError('A planilha atingiu o limite de 10.000 registros desta versão.');
+    if(existing?.deleted==='1')publicError('Esta ficha já foi excluída. Crie uma nova ficha.');
+    if(!existing&&request.record.revision)publicError('A ficha original não está mais na planilha. Atualize as fichas.');
+    record.date=record.date||existing?.date||Utilities.formatDate(new Date(),'America/Sao_Paulo','yyyy-MM-dd');
+    if(existing){
+      const same=Object.keys(LIMITS).every(k=>record[k]===existing[k]);
+      if(same)return {record:existing};
+      if(request.record.revision!==existing.revision)publicError('Esta ficha mudou em outro lugar. Guarde suas alterações, descarte o rascunho e atualize as fichas antes de editar novamente.');
+    }
+    record.updatedAt=new Date().toISOString();record.deleted='';
+    const row=KEYS.map(k=>record[k]||'');
+    write_(sheet,index<0?count+2:index+2,row);
+    return {record:record_(row)};
+  }finally{lock.releaseLock();}
+}
+function doPost(e) {
+  let response;
+  try{
+    if(!e?.postData?.contents||e.postData.contents.length>25000)publicError('Pedido inválido ou muito grande.');
+    const result=handle_(JSON.parse(e.postData.contents));
+    response={ok:true,spreadsheetId:SPREADSHEET_ID,...result};
+  }catch(error){
+    const permission=/caller does not have permission|permission denied|storage quota|insufficient.*storage/i.test(String(error.message||error));
+    response={ok:false,error:error.publicMessage||(permission?'O Google bloqueou a gravação. Verifique o espaço da conta proprietária e a permissão de edição da planilha. O rascunho foi mantido.':'Não foi possível acessar a planilha. Tente novamente. O rascunho foi mantido.')};
+  }
+  return ContentService.createTextOutput(JSON.stringify(response)).setMimeType(ContentService.MimeType.JSON);
+}
+
+
+  function validCnpj_(value){
+    const v=String(value).toUpperCase().replace(/[.\/\s-]/g,'');
+    if(!/^[A-Z0-9]{12}\d{2}$/.test(v)||/^(.)\1{13}$/.test(v))return false;
+    for(let size=12;size<=13;size++){
+      let sum=0,weight=size-7;
+      for(let i=0;i<size;i++){sum+=(v.charCodeAt(i)-48)*weight;if(--weight<2)weight=9;}
+      const rest=sum%11;if(Number(v[size])!==(rest<2?0:11-rest))return false;
+    }return true;
+  }

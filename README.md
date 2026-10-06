@@ -17,7 +17,7 @@ Testes: `node --test tests/sheets.test.cjs web/test/*.test.cjs`.
 Os testes de interface em `tests/` usam Playwright e Chrome, com dados fictícios. Requerem o servidor local. Instale Playwright no ambiente de desenvolvimento; `CHROME_PATH` pode personalizar o navegador no teste today-copy-ui.
 
 ## Publicação
-Na Vercel, use a pasta raiz `web` e o diretório de saída `public`. Configure `SESSION_SECRET` no ambiente protegido da Vercel. O código do conector Google fica em `google-sheets/Code.gs`; configure `ACCESS_TOKEN` nas propriedades do Apps Script. Os endereços existentes da planilha e da implantação estão no código, mas nenhuma chave de acesso é incluída.
+Na Vercel, use a pasta raiz `web` e o diretório de saída `public`. Configure `SESSION_SECRET` no ambiente protegido da Vercel. O código do conector Google fica em `google-sheets/Code.gs`; configure `ACCESS_TOKEN` nas propriedades do Apps Script. Configure GOOGLE_APPS_SCRIPT_URL e GOOGLE_SPREADSHEET_ID como variáveis privadas na Vercel e SPREADSHEET_ID nas propriedades do Apps Script. Nenhuma chave ou endereço de integração é incluído.
 
 A coluna legada CPF guarda CPF ou CNPJ. Os números são preservados como texto. O botão de cópia copia sem pontuação; o texto visual pode ser selecionado normalmente.
 
@@ -29,4 +29,3 @@ Rascunhos permanecem apenas no navegador e são removidos ao sair da conta. Cred
 - `google-sheets/`: conector Apps Script.
 - `tests/`: verificações com dados fictícios.
 - `tools/update-catalogs.cjs`: atualização de catálogos públicos.
-
